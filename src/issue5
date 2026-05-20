@@ -1,0 +1,68 @@
+#include <Arduino.h>
+
+// ====================================================================
+// CONFIGURACIÓN DE HARDWARE Y PARÁMETROS DE SEGURIDAD
+// ====================================================================
+const int PIN_RELE = 26;
+
+const unsigned long TIEMPO_MAX_RIEGO = 10000;
+unsigned long cronometroRiego = 0;
+bool riegoActivo = false;
+
+// ====================================================================
+// FUNCIONES DE CONTROL (Mecanismo de activación)
+// ====================================================================
+
+void encenderRiego() {
+  if (!riegoActivo) {
+    digitalWrite(PIN_RELE, HIGH);
+    riegoActivo = true;
+    cronometroRiego = millis();
+    Serial.println("➔ [RELÉ] Electroválvula ABIERTA. Iniciando riego...");
+  }
+}
+
+void apagarRiego(String motivo) {
+  if (riegoActivo) {
+    digitalWrite(PIN_RELE, LOW);
+    riegoActivo = false;
+    Serial.print("➔ [RELÉ] Electroválvula CERRADA. Motivo: ");
+    Serial.println(motivo);
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("--- GreenFarm IoT: Control Seguro del Relé ---");
+
+  pinMode(PIN_RELE, OUTPUT);
+  
+  digitalWrite(PIN_RELE, LOW); 
+  
+  Serial.println("Escriba '1' en el Monitor Serie para ACTIVAR el riego manualmente.");
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    char comando = Serial.read();
+    if (comando == '1') {
+      encenderRiego();
+    } else if (comando == '0') {
+      apagarRiego("Apagado manual por usuario.");
+    }
+  }
+
+  if (riegoActivo) {
+    unsigned long tiempoCorriendo = millis() - cronometroRiego;
+    
+    if (tiempoCorriendo % 1000 < 50) { 
+      Serial.printf("[Seguridad] Tiempo actual de riego: %lu / %lu ms\n", tiempoCorriendo, TIEMPO_MAX_RIEGO);
+      delay(50); // Pequeño delay para evitar duplicados en el monitor
+    }
+
+    if (tiempoCorriendo >= TIEMPO_MAX_RIEGO) {
+      apagarRiego("TIMEOUT de seguridad superado (Evita inundación).");
+    }
+  }
+}
