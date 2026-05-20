@@ -1,0 +1,57 @@
+#include <Arduino.h>
+
+// ====================================================================
+// CONFIGURACIÓN DE HARDWARE Y VARIABLES GLOBALES
+// ====================================================================
+const int PIN_CAUDAL = 25;
+
+volatile int contadorPulsos = 0;
+
+const float FACTOR_CALIBRACION = 7.5; // Frecuencia (Hz) = 7.5 * Q (Litros/min)
+
+unsigned long tiempoPrevio = 0;
+float flujoLitrosMin = 0.0;
+float volumenTotalLitros = 0.0;
+
+// ====================================================================
+// RUTINA DE SERVICIO DE INTERRUPCIÓN (ISR)
+// ====================================================================
+void IRAM_ATTR contarPulsos() {
+  contadorPulsos++;
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("--- GreenFarm IoT: Test del Caudalímetro ---");
+
+  pinMode(PIN_CAUDAL, INPUT_PULLUP);
+  
+  attachInterrupt(digitalPinToInterrupt(PIN_CAUDAL), contarPulsos, FALLING);
+}
+
+void loop() {
+  unsigned long tiempoActual = millis();
+
+  if (tiempoActual - tiempoPrevio >= 1000) {
+    
+    noInterrupts();
+    int pulsosEnEsteSegundo = contadorPulsos;
+    contadorPulsos = 0; // Reiniciamos el contador para el próximo segundo
+    interrupts();
+
+    unsigned long tiempoTranscurrido = tiempoActual - tiempoPrevio;
+    tiempoPrevio = tiempoActual;
+
+    flujoLitrosMin = ((pulsosEnEsteSegundo) / FACTOR_CALIBRACION);
+
+    float litrosEnEsteSegundo = (flujoLitrosMin / 60.0) * (tiempoTranscurrido / 1000.0);
+    volumenTotalLitros += litrosEnEsteSegundo;
+
+    Serial.print("Caudal actual: ");
+    Serial.print(flujoLitrosMin);
+    Serial.print(" L/min  |  Volumen total acumulado: ");
+    Serial.print(volumenTotalLitros);
+    Serial.println(" Litros");
+  }
+}
