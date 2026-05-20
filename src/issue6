@@ -1,0 +1,111 @@
+#include <Arduino.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+// ====================================================================
+// CONFIGURACIÓN DE RED Y MQTT
+// ====================================================================
+const char* const CONFIG_SSID     = "TU_WIFI_SSID";
+const char* const CONFIG_PASSWORD = "TU_WIFI_PASSWORD";
+const char* const MQTT_SERVER     = "broker.hivemq.com";
+const int        MQTT_PORT       = 1883;
+
+const char* const TOPIC_TEST_ENVIO   = "greenfarm/granja1/test/envio";
+const char* const TOPIC_TEST_RECIBO  = "greenfarm/granja1/test/recibo";
+
+unsigned long tiempoPrevioEnvio = 0;
+const long    INTERVALO_ENVIO   = 5000;
+
+WiFiClient   espClient;
+PubSubClient client(espClient);
+
+// ====================================================================
+// FUNCIONES DE CONECTIVIDAD
+// ====================================================================
+
+void iniciarWifi() {
+  delay(10);
+  Serial.println();
+  Serial.print("Conectando a la red: ");
+  Serial.println(CONFIG_SSID);
+
+  WiFi.begin(CONFIG_SSID, CONFIG_PASSWORD);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\n¡Wi-Fi conectado con éxito!");
+  Serial.print("Dirección IP asignada: ");
+  Serial.println(WiFi.localIP());
+}
+
+void alRecibirMensaje(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Mensaje recibido en el tópico [");
+  Serial.print(topic);
+  Serial.print("]: ");
+  
+  String mensaje = "";
+  for (unsigned int i = 0; i < length; i++) {
+    mensaje += (char)payload[i];
+  }
+  Serial.println(mensaje);
+}
+
+void reconectarMQTT() {
+  while (!client.connected()) {
+    Serial.print("Intentando establecer conexión MQTT...");
+    
+    String clienteID = "ESP32-GreenFarm-" + String(random(0, 10000));
+    
+    if (client.connect(clienteID.c_str())) {
+      Serial.println(" ¡CONECTADO!");
+      
+      client.subscribe(TOPIC_TEST_RECIBO);
+      Serial.printf("Suscrito con éxito a: %s\n", TOPIC_TEST_RECIBO);
+    } else {
+      Serial.print(" Falló el enlace. Código de error: ");
+      Serial.print(client.state());
+      Serial.println(". Reintentando en 5 segundos...");
+      delay(5000);
+    }
+  }
+}
+
+// ====================================================================
+// CONFIGURACIÓN INICIAL Y BUCLE
+// ====================================================================
+
+void setup() {
+  Serial.begin(115200);
+  
+  iniciarWifi();
+  
+  client.setServer(MQTT_SERVER, MQTT_PORT);
+  client.setCallback(alRecibirMensaje);
+}
+
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    iniciarWifi();
+  }
+
+  if (!client.connected()) {
+    reconectarMQTT();
+  }
+  
+  client.loop();
+
+  unsigned long tiempoActual = millis();
+  if (tiempoActual - tiempoPrevioEnvio >= INTERVALO_ENVIO) {
+    tiempoPrevioEnvio = tiempoActual;
+
+    String payload = "Latido GreenFarm - Tiempo en marcha: " + String(tiempoActual / 1000) + "s";
+    
+    Serial.print("Publicando mensaje: ");
+    Serial.println(payload);
+    
+    client.publish(TOPIC_TEST_ENVIO, payload.c_str());
+  }
+}
