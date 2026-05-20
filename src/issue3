@@ -1,0 +1,33 @@
+#include <Arduino.h>
+
+// ====================================================================
+// CONFIGURACIÓN DE HARDWARE Y CALIBRACIÓN
+// ====================================================================
+const int PIN_HUMEDAD = 34;
+
+const int VALOR_SECO   = 3200;
+const int VALOR_HUMEDO = 1500;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("--- GreenFarm IoT: Calibración del Sensor de Humedad ---");
+
+  pinMode(PIN_HUMEDAD, INPUT);
+}
+
+void loop() {
+  int lecturaBruta = analogRead(PIN_HUMEDAD);
+
+  int porcentajeHumedad = map(lecturaBruta, VALOR_SECO, VALOR_HUMEDO, 0, 100);
+
+  porcentajeHumedad = constrain(porcentajeHumedad, 0, 100);
+
+  Serial.print("Lectura Bruta (ADC): ");
+  Serial.print(lecturaBruta);
+  Serial.print("  |  Humedad Calculada: ");
+  Serial.print(porcentajeHumedad);
+  Serial.println("%");
+
+  delay(2000);
+}
