@@ -1,0 +1,26 @@
+#include <Arduino.h>
+
+// ====================================================================
+// DEFINICIÓN DE PINS (Configuración inicial de hardware para GreenFarm)
+// ====================================================================
+const int PIN_HUMEDAD = 34;    // Entrada analógica para el sensor de humedad
+const int PIN_CAUDAL  = 25;    // Entrada digital para el caudalímetro
+const int PIN_RELE    = 26;    // Salida digital para la electroválvula
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("--- GreenFarm IoT: Sistema Inicializado ---");
+
+  pinMode(PIN_RELE, OUTPUT);
+  digitalWrite(PIN_RELE, LOW); // Asegurar que el riego empieza apagado
+  
+  pinMode(PIN_CAUDAL, INPUT_PULLUP);
+  
+  Serial.println("Estructura de pines configurada correctamente.");
+}
+
+void loop() {
+  Serial.println("Esperando implementación de la lógica de sensores y conectividad MQTT...");
+  delay(5000); 
+}
